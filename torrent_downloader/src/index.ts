@@ -1,6 +1,6 @@
 import WebTorrent from "webtorrent";
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,7 +12,21 @@ const torrentId =
 
 const downloadPath = path.join(__dirname, "downloads");
 
-client.add(torrentId, {path: downloadPath} , function (torrent) {
+client.add(torrentId, { path: downloadPath }, function (torrent) {
+  // // Select mp4 file
+  // const file = torrent.files.find(function (file) {
+  //   return file.name.endsWith(".mp4");
+  // })
+
+  // if (file) {
+  //   console.log("MP4 FILE FOUND!");
+  //   const stream = file.createReadStream();
+
+  //   stream.on("data", (chunk) => {
+  //     console.log(chunk.toString())
+  //   })
+  // }
+
   // Download
   torrent.on("download", function (bytes) {
     console.log("just downloaded: " + bytes);
