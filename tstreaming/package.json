@@ -1,0 +1,46 @@
+{
+  "name": "tstreaming",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "lint": "prettier --write . && eslint .",
+    "start": "react-native start",
+    "test": "jest"
+  },
+  "dependencies": {
+    "assert": "^1.5.0",
+    "events": "^1.1.1",
+    "process": "^0.11.10",
+    "punycode": "^1.4.1",
+    "react": "18.2.0",
+    "react-native": "0.71.8",
+    "react-native-randombytes": "^3.0.0",
+    "string_decoder": "^0.10.31",
+    "text-encoding": "^0.7.0",
+    "url": "^0.10.3",
+    "util": "^0.10.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/plugin-syntax-import-assertions": "^7.20.0",
+    "@babel/preset-env": "^7.20.0",
+    "@babel/runtime": "^7.20.0",
+    "@react-native-community/eslint-config": "^3.2.0",
+    "@tsconfig/react-native": "^2.0.2",
+    "@types/jest": "^29.2.1",
+    "@types/react": "^18.0.24",
+    "@types/react-test-renderer": "^18.0.0",
+    "babel-jest": "^29.2.1",
+    "eslint": "^8.19.0",
+    "jest": "^29.2.1",
+    "metro-react-native-babel-preset": "0.73.9",
+    "prettier": "^2.4.1",
+    "react-test-renderer": "18.2.0",
+    "typescript": "4.8.4"
+  },
+  "jest": {
+    "preset": "react-native"
+  }
+}
