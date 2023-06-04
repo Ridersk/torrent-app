@@ -146,6 +146,17 @@ android {
 
         }
     }
+
+    // Local libs folder
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+}
+
+ext {
+    jlibtorrent_version = "1.2.19.0"
 }
 
 dependencies {
@@ -165,6 +176,13 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    //  Project dependencies
+    implementation files("libs/jlibtorrent-${jlibtorrent_version}.jar")
+    implementation files("libs/jlibtorrent-android-arm-${jlibtorrent_version}.jar")
+    implementation files("libs/jlibtorrent-android-arm64-${jlibtorrent_version}.jar")
+    implementation files("libs/jlibtorrent-android-x86-${jlibtorrent_version}.jar")
+    implementation files("libs/jlibtorrent-android-x86_64-${jlibtorrent_version}.jar")
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
