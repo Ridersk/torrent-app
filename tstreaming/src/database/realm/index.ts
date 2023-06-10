@@ -69,4 +69,9 @@ export class RealmDatabase implements IDatabase {
 
     return Promise.resolve();
   }
+
+  addListener(callback: (data: any) => void) {
+    const objects = this.realm.objects(this.schema.name);
+    objects.addListener(callback);
+  }
 }

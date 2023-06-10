@@ -1,9 +1,9 @@
-import { StyleSheet } from "react-native";
+import {StyleSheet} from "react-native";
 
-export const styles = StyleSheet.create({
+export default StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
+    flexDirection: "column",
     backgroundColor: "#ecf0f1",
   },
   video: {
@@ -19,5 +19,16 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 24,
     fontWeight: "600",
-  }
+  },
+  downloadList: {
+    flex: 1,
+    marginTop: 10,
+  },
+  downloadItem: {
+    padding: 10,
+    fontSize: 18,
+    height: 44,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
 });

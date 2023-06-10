@@ -14,8 +14,8 @@ export type AlertType =
   | "DHT_ERROR"
   | "ERROR";
 
-interface CustomTorrenInterface {
-  download(magnetLink: string): void;
+export interface NativeTorrentModuleInterface {
+  download(downloadId: string, magnetLink: string): void;
 }
 
-export default NativeTorrentModule as CustomTorrenInterface;
+export default NativeTorrentModule as NativeTorrentModuleInterface;

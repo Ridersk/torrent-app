@@ -1,62 +1,48 @@
-import React, {useState, useEffect} from "react";
-import {View, ScrollView, Text, DeviceEventEmitter} from "react-native";
+import React, {useEffect, useState} from "react";
+import {View, Text, FlatList} from "react-native";
 
-import {styles} from "./styles";
-import NativeTorrentModule from "../../modules/NativeTorrentModule";
-import {RealmDatabase} from "../../database/realm";
-import {DownloadObject} from "../../database/realm/objects/download";
-import { DownloadModel } from "../../models/download";
+import styles from "./styles";
+import {DownloadManager} from "../../services/downloadManager";
+import {DownloadModel} from "../../models/download";
+import Search from "../../components/Search";
 
 export default () => {
-  const downloadDb = new RealmDatabase(DownloadObject);
-  const [progress, setProgress] = useState(0);
+  const downloadManager = new DownloadManager();
+  const [downloads, setDownloads] = useState<DownloadModel[]>([]);
+  const [refresh, setRefresh] = useState<boolean>(false);
 
-  const fetchTorrent = () => {
-    console.log("Starting Torrent...");
-
-    DeviceEventEmitter.addListener("PIECE_FINISHED", data => {
-      console.log("Progress: ", data);
-      setProgress(data);
-    });
-    DeviceEventEmitter.addListener("METADATA_RECEIVED", data =>
-      console.log("Metadata: ", data),
-    );
-    DeviceEventEmitter.addListener("TORRENT_INFO", data =>
-      console.log("Torrent info: ", data),
-    );
-    DeviceEventEmitter.addListener("ERROR", data =>
-      console.error("Error: ", data),
-    );
-
-    NativeTorrentModule.download(
-      "magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fsintel.torrent",
-    );
-  };
-
-  const createDownload = async () => {
-    const download = await downloadDb.create({
-      name: "Sintel",
-      location: "downloads/sintel",
-    });
-
-    console.log(`Download created: ${download.constructor.name} `, download);
-
-    const downloads = await downloadDb.getAll();
-    console.log(`Downloads: (${downloads.length}):`, downloads);
-  };
+  async function handleDownload(magnetLink: string) {
+    console.log("Add download:", magnetLink);
+    await downloadManager.download(magnetLink);
+  }
 
   useEffect(() => {
-    // fetchTorrent();
-    createDownload();
+    downloadManager.getDownloadsListener(_downloads => {
+      setRefresh(true);
+      setDownloads(_downloads);
+      setRefresh(false);
+    });
   }, []);
 
-  return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.container}>
-      <View>
-        <Text style={styles.sectionTitle}>Progress: {progress}</Text>
+  function renderDownload({item}: {item: DownloadModel}) {
+    return (
+      <View style={styles.downloadItem}>
+        <Text>{item.name}</Text>
+        <Text>{item.progress}</Text>
       </View>
-    </ScrollView>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Search onSubmit={handleDownload} />
+      <FlatList
+        style={styles.downloadsList}
+        keyExtractor={(item, index) => index.toString()}
+        data={downloads}
+        refreshing={refresh}
+        renderItem={renderDownload}
+      />
+    </View>
   );
 };

@@ -1,5 +1,5 @@
 import Realm from "realm";
-import { DownloadModel } from "../../../models/download";
+import {DownloadModel} from "../../../models/download";
 
 export class DownloadObject extends Realm.Object<DownloadModel> {
   static schema = {
@@ -8,7 +8,10 @@ export class DownloadObject extends Realm.Object<DownloadModel> {
     properties: {
       _id: {type: "string", indexed: true},
       name: "string",
-      location: "string",
+      location: "string?",
+      source: "string",
+      status: "string",
+      progress: "int",
     },
   };
 }

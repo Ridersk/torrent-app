@@ -14,7 +14,6 @@ import com.frostwire.jlibtorrent.TorrentInfo;
 import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
-import com.frostwire.jlibtorrent.alerts.MetadataReceivedAlert;
 import com.frostwire.jlibtorrent.alerts.PieceFinishedAlert;
 import com.frostwire.jlibtorrent.alerts.TorrentErrorAlert;
 import com.frostwire.jlibtorrent.alerts.TorrentFinishedAlert;
@@ -24,7 +23,10 @@ import android.content.Context;
 import android.util.Log;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
@@ -49,32 +51,32 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void download(String magnetLink) {
-        new Thread(() -> downloadProcess(magnetLink)).start();
+    public void download(String downloadId, String magnetLink) {
+        new Thread(() -> downloadProcess(downloadId, magnetLink)).start();
     }
 
-    private void downloadProcess(String magnetLink) {
-//        File folderLocation = Environment.getExternalStoragePublicDirectory(
-//                Environment.DIRECTORY_DOWNLOADS);
-        File folderLocation = this.context.getExternalFilesDir(null);
+    private void downloadProcess(String downloadId, String magnetLink) {
+        File rootFolderLocation = this.context.getExternalFilesDir(null);
         SessionManager sessionManager = new SessionManager();
 
         try {
             log("Magnet link to process: " + magnetLink);
             startSession(sessionManager);
             TorrentInfo torrentInfo = getInfoFromMagnet(sessionManager, magnetLink);
+            File folderLocation = makeDownloadFolder(rootFolderLocation, downloadId);
 
             WritableMap infoData = Arguments.createMap();
             infoData.putString("name", torrentInfo.name());
             infoData.putString("folderLocation", folderLocation.getAbsolutePath());
+            emitDataToApp("TORRENT_INFO", downloadId, infoData);
 
-            emitDataToApp("TORRENT_INFO", infoData);
-
-            startDownload(sessionManager, folderLocation, torrentInfo);
+            startDownload(sessionManager, folderLocation, torrentInfo, downloadId);
 
         } catch (Exception e) {
             log(e.getMessage(), "e");
-            emitDataToApp("ERROR", e);
+            WritableMap errorData = Arguments.createMap();
+            errorData.putString("error", e.getMessage());
+            emitDataToApp("ERROR", downloadId, errorData);
         } finally {
             sessionManager.stop();
         }
@@ -83,11 +85,12 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     private void startDownload(
             SessionManager sessionManager,
             File folderLocation,
-            TorrentInfo torrentInfo
+            TorrentInfo torrentInfo,
+            String downloadId
     ) throws InterruptedException {
         final CountDownLatch signal = new CountDownLatch(1);
 
-        addListener(sessionManager, signal);
+        addListener(sessionManager, signal, downloadId);
         log("Storage location: " + folderLocation.getAbsolutePath());
         log("Starting download");
         sessionManager.download(torrentInfo, folderLocation);
@@ -95,8 +98,23 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
         signal.await();
     }
 
-    private void addListener(SessionManager session, CountDownLatch signal) {
+    private File makeDownloadFolder(File rootFolder, String downloadId) throws IOException {
+        File folder = new File(rootFolder.getAbsolutePath(), downloadId);
+
+        if (!folder.exists()) {
+            if (!folder.mkdirs()) {
+                throw new IOException("Error on try creating folder");
+            }
+            log("Folder created");
+        }
+
+        return folder;
+    }
+
+    private void addListener(SessionManager session, CountDownLatch signal, String downloadId) {
         AlertListener listener = new AlertListener() {
+            int progress = 0;
+
             @Override
             public int[] types() {
                 return null;
@@ -105,50 +123,54 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
             @Override
             public void alert(Alert<?> alert) {
                 AlertType type = alert.type();
-                int progress;
                 int index;
+                WritableMap alertData = Arguments.createMap();
 
                 switch (type) {
                     case ADD_TORRENT:
                         ((AddTorrentAlert) alert).handle().resume();
                         log("ADD_TORRENT: " + alert.message());
-                        emitDataToApp("ADD_TORRENT", "");
+                        emitDataToApp("ADD_TORRENT", downloadId, alertData);
                         break;
                     case METADATA_RECEIVED:
                         log("METADATA_RECEIVED: " + alert.message());
-                        emitDataToApp("METADATA_RECEIVED", "");
+                        emitDataToApp("METADATA_RECEIVED", downloadId, alertData);
                         break;
                     case PIECE_FINISHED:
-                        progress = (int) (
+                        int newProgress = (int) (
                                 ((PieceFinishedAlert) alert).handle().status().progress() * 100
                         );
-                        index = ((PieceFinishedAlert) alert).pieceIndex();
-                        log("Progress: " + progress + "%, "
-                                + "Rate: " + session.downloadRate() + ", "
-                                + "Piece: " + index
-                        );
-                        emitDataToApp("PIECE_FINISHED", progress);
+                        if (progress != newProgress) {
+                            progress = newProgress;
+                            index = ((PieceFinishedAlert) alert).pieceIndex();
+                            log("Progress: " + progress + "%, "
+                                    + "Rate: " + session.downloadRate() + ", "
+                                    + "Piece: " + index
+                            );
+                            alertData.putInt("progress", progress);
+                            emitDataToApp("PIECE_FINISHED", downloadId, alertData);
+                        }
                         break;
                     case TORRENT_FINISHED:
                         ((TorrentFinishedAlert) alert).handle().pause();
                         log("TORRENT_FINISHED: " + alert.message());
-                        emitDataToApp("TORRENT_FINISHED", "");
+                        emitDataToApp("TORRENT_FINISHED", downloadId, alertData);
                         signal.countDown();
                         break;
                     case STATE_UPDATE:
                         log("STATE_UPDATE: " + alert.message());
-                        emitDataToApp("STATE_UPDATE", "");
+                        emitDataToApp("STATE_UPDATE", downloadId, alertData);
                         break;
                     case TORRENT_ERROR:
                         log("TORRENT_ERROR: " + alert.what());
                         log("Is paused = " + ((TorrentErrorAlert) alert).handle().status());
-                        emitDataToApp("TORRENT_ERROR", "");
+                        emitDataToApp("TORRENT_ERROR", downloadId, alertData);
                         signal.countDown();
                         break;
                     case DHT_ERROR:
                         log("DHT_ERROR: " + alert.message(), "e");
                         log(alert.message());
-                        emitDataToApp("DHT_ERROR", "");
+                        emitDataToApp("DHT_ERROR", downloadId, alertData);
                         signal.countDown();
                         break;
                     default:
@@ -226,7 +248,8 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
         }
     }
 
-    private void emitDataToApp(String eventType, Object data) {
+    private void emitDataToApp(String eventType, String downloadId, WritableMap data) {
+        data.putString("downloadId", downloadId);
         this.getReactApplicationContext().getJSModule(
                 DeviceEventManagerModule.RCTDeviceEventEmitter.class
         ).emit(eventType, data);
