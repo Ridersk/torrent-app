@@ -1,15 +1,14 @@
 import React, {useState, useEffect} from "react";
-import {
-  View,
-  ScrollView,
-  Text,
-  DeviceEventEmitter,
-} from "react-native";
+import {View, ScrollView, Text, DeviceEventEmitter} from "react-native";
 
 import {styles} from "./styles";
 import NativeTorrentModule from "../../modules/NativeTorrentModule";
+import {RealmDatabase} from "../../database/realm";
+import {DownloadObject} from "../../database/realm/objects/download";
+import { DownloadModel } from "../../models/download";
 
-export default function App() {
+export default () => {
+  const downloadDb = new RealmDatabase(DownloadObject);
   const [progress, setProgress] = useState(0);
 
   const fetchTorrent = () => {
@@ -34,8 +33,21 @@ export default function App() {
     );
   };
 
+  const createDownload = async () => {
+    const download = await downloadDb.create({
+      name: "Sintel",
+      location: "downloads/sintel",
+    });
+
+    console.log(`Download created: ${download.constructor.name} `, download);
+
+    const downloads = await downloadDb.getAll();
+    console.log(`Downloads: (${downloads.length}):`, downloads);
+  };
+
   useEffect(() => {
-    fetchTorrent();
+    // fetchTorrent();
+    createDownload();
   }, []);
 
   return (
@@ -47,4 +59,4 @@ export default function App() {
       </View>
     </ScrollView>
   );
-}
+};
