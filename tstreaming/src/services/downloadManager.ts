@@ -1,9 +1,9 @@
 import {DeviceEventEmitter} from "react-native";
-import {RealmDatabase} from "../../database/realm";
-import {DownloadObject} from "../../database/realm/objects/download";
+import {RealmDatabase} from "../database/realm";
+import {DownloadObject} from "../database/realm/objects/download";
 import NativeTorrentModule, {
   NativeTorrentModuleInterface,
-} from "../../modules/NativeTorrentModule";
+} from "../modules/NativeTorrentModule";
 
 export class DownloadManager {
   private downloadDb: RealmDatabase;
@@ -15,7 +15,13 @@ export class DownloadManager {
     this.addNativeTorrentListeners();
   }
 
-  public async download(magnetLink: string) {
+  public getDownloadsListener(callback: (data: any) => void) {
+    this.downloadDb.addListener((data: any) => {
+      callback(data);
+    });
+  }
+
+  public async add(magnetLink: string) {
     const download = await this.downloadDb.create({
       name: "Searching...",
       source: magnetLink,
@@ -26,10 +32,27 @@ export class DownloadManager {
     return download;
   }
 
-  public getDownloadsListener(callback: (data: any) => void) {
-    this.downloadDb.addListener((data: any) => {
-      callback(data);
-    });
+  public async pause(downloadId: string) {
+    try {
+      await this.torrentService.pause(downloadId);
+      this.downloadDb.update(downloadId, {status: "PAUSED"});
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  public async resume(downloadId: string) {
+    try {
+      await this.torrentService.resume(downloadId);
+      this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  public async restart(downloadId: string) {
+    // await this.torrentService.restart(downloadId);
+    // this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
   }
 
   private processTorrentDownload(downloadId: string, magnetLink: string) {

@@ -1,6 +1,7 @@
 package com.tstreaming.torrent;
 
 import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -25,8 +26,8 @@ import android.util.Log;
 import java.io.File;
 import java.io.IOException;
 import java.io.InvalidObjectException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
@@ -37,12 +38,14 @@ import java.util.concurrent.TimeoutException;
 public class NativeTorrentModule extends ReactContextBaseJavaModule {
 
     private final Context context;
+    private final Map<String, SessionManager> downloadsInProcessing;
 
     private static final String TAG = NativeTorrentModule.class.getSimpleName();
 
     public NativeTorrentModule(ReactApplicationContext context) {
         super(context);
         this.context = context;
+        this.downloadsInProcessing = new HashMap<>();
     }
 
     @Override
@@ -53,6 +56,36 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void download(String downloadId, String magnetLink) {
         new Thread(() -> downloadProcess(downloadId, magnetLink)).start();
+    }
+
+    @ReactMethod
+    public void pause(String downloadId, Promise promise) {
+        SessionManager sessionManager = this.downloadsInProcessing.get(downloadId);
+
+        if (sessionManager == null) {
+            String errorMsg = "Session Manager doesn't exists for download id " + downloadId;
+            log(errorMsg);
+            promise.reject("DOWNLOAD_PROCESS_NOT_FOUND", errorMsg);
+            return;
+        }
+
+        sessionManager.pause();
+        promise.resolve(null);
+    }
+
+    @ReactMethod
+    public void resume(String downloadId, Promise promise) {
+        SessionManager sessionManager = this.downloadsInProcessing.get(downloadId);
+
+        if (sessionManager == null) {
+            String errorMsg = "Session Manager doesn't exists for download id " + downloadId;
+            log(errorMsg);
+            promise.reject("DOWNLOAD_PROCESS_NOT_FOUND", errorMsg);
+            return;
+        }
+
+        sessionManager.resume();
+        promise.resolve(null);
     }
 
     private void downloadProcess(String downloadId, String magnetLink) {
@@ -71,7 +104,6 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
             emitDataToApp("TORRENT_INFO", downloadId, infoData);
 
             startDownload(sessionManager, folderLocation, torrentInfo, downloadId);
-
         } catch (Exception e) {
             log(e.getMessage(), "e");
             WritableMap errorData = Arguments.createMap();
@@ -90,12 +122,14 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     ) throws InterruptedException {
         final CountDownLatch signal = new CountDownLatch(1);
 
-        addListener(sessionManager, signal, downloadId);
+        addListener(sessionManager, downloadId, signal);
         log("Storage location: " + folderLocation.getAbsolutePath());
         log("Starting download");
         sessionManager.download(torrentInfo, folderLocation);
+        this.downloadsInProcessing.put(downloadId, sessionManager);
 
         signal.await();
+
     }
 
     private File makeDownloadFolder(File rootFolder, String downloadId) throws IOException {
@@ -111,7 +145,7 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
         return folder;
     }
 
-    private void addListener(SessionManager session, CountDownLatch signal, String downloadId) {
+    private void addListener(SessionManager session, String downloadId, CountDownLatch signal) {
         AlertListener listener = new AlertListener() {
             int progress = 0;
 

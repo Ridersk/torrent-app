@@ -16,6 +16,8 @@ export type AlertType =
 
 export interface NativeTorrentModuleInterface {
   download(downloadId: string, magnetLink: string): void;
+  pause(downloadId: string): Promise<void>;
+  resume(downloadId: string): Promise<void>;
 }
 
 export default NativeTorrentModule as NativeTorrentModuleInterface;
