@@ -15,6 +15,7 @@ import com.frostwire.jlibtorrent.TorrentInfo;
 import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
+import com.frostwire.jlibtorrent.alerts.MetadataReceivedAlert;
 import com.frostwire.jlibtorrent.alerts.PieceFinishedAlert;
 import com.frostwire.jlibtorrent.alerts.TorrentErrorAlert;
 import com.frostwire.jlibtorrent.alerts.TorrentFinishedAlert;
@@ -25,14 +26,9 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 
 public class NativeTorrentModule extends ReactContextBaseJavaModule {
@@ -93,17 +89,11 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
         SessionManager sessionManager = new SessionManager();
 
         try {
-            log("Magnet link to process: " + magnetLink);
-            startSession(sessionManager);
-            TorrentInfo torrentInfo = getInfoFromMagnet(sessionManager, magnetLink);
             File folderLocation = makeDownloadFolder(rootFolderLocation, downloadId);
 
-            WritableMap infoData = Arguments.createMap();
-            infoData.putString("name", torrentInfo.name());
-            infoData.putString("folderLocation", folderLocation.getAbsolutePath());
-            emitDataToApp("TORRENT_INFO", downloadId, infoData);
-
-            startDownload(sessionManager, folderLocation, torrentInfo, downloadId);
+            log("Magnet link to process: " + magnetLink);
+            startSession(sessionManager);
+            startDownload(sessionManager, folderLocation, magnetLink, downloadId);
         } catch (Exception e) {
             log(e.getMessage(), "e");
             WritableMap errorData = Arguments.createMap();
@@ -117,7 +107,7 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     private void startDownload(
             SessionManager sessionManager,
             File folderLocation,
-            TorrentInfo torrentInfo,
+            String magnetLink,
             String downloadId
     ) throws InterruptedException {
         final CountDownLatch signal = new CountDownLatch(1);
@@ -125,11 +115,10 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
         addListener(sessionManager, downloadId, signal);
         log("Storage location: " + folderLocation.getAbsolutePath());
         log("Starting download");
-        sessionManager.download(torrentInfo, folderLocation);
+        sessionManager.download(magnetLink, folderLocation);
         this.downloadsInProcessing.put(downloadId, sessionManager);
 
         signal.await();
-
     }
 
     private File makeDownloadFolder(File rootFolder, String downloadId) throws IOException {
@@ -167,8 +156,19 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
                         emitDataToApp("ADD_TORRENT", downloadId, alertData);
                         break;
                     case METADATA_RECEIVED:
-                        log("METADATA_RECEIVED: " + alert.message());
-                        emitDataToApp("METADATA_RECEIVED", downloadId, alertData);
+                        TorrentInfo torrentInfo = ((MetadataReceivedAlert) alert)
+                                .handle()
+                                .torrentFile();
+                        String folderLocation = ((MetadataReceivedAlert) alert).handle().savePath();
+
+
+                        ((MetadataReceivedAlert) alert).handle().torrentFile();
+
+                        log("METADATA_RECEIVED: " + torrentInfo.name() + " - " + folderLocation);
+
+                        alertData.putString("name", torrentInfo.name());
+                        alertData.putString("folderLocation", folderLocation);
+                        emitDataToApp("TORRENT_INFO", downloadId, alertData);
                         break;
                     case PIECE_FINISHED:
                         int newProgress = (int) (
@@ -238,51 +238,6 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
 
         if (!session.isRunning())
             session.start(params);
-    }
-
-    private TorrentInfo getInfoFromMagnet(final SessionManager session, String magnetLink)
-            throws InterruptedException, TimeoutException, InvalidObjectException {
-        if (!magnetLink.startsWith("magnet:?")) {
-            throw new TimeoutException("Magnet link is invalid");
-        }
-
-        waitForNodesInDHT(session);
-
-        byte[] data = session.fetchMagnet(magnetLink, 30);
-        TorrentInfo torrentInfo = TorrentInfo.bdecode(data);
-
-        log("Torrent name: " + torrentInfo.name());
-
-        boolean torrentIsValid = torrentInfo.isValid();
-        if (!torrentIsValid) {
-            throw new InvalidObjectException("Torrent info is invalid");
-        }
-
-        return torrentInfo;
-    }
-
-    private void waitForNodesInDHT(final SessionManager session)
-            throws InterruptedException, TimeoutException {
-        final CountDownLatch signal = new CountDownLatch(1);
-
-        final Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                long nodes = session.stats().dhtNodes();
-                if (nodes >= 5) {
-                    log("DHT contains " + nodes + " nodes");
-                    signal.countDown();
-                    timer.cancel();
-                }
-            }
-        }, 0, 100);
-
-        log("Waiting for nodes in DHT (10 seconds)...");
-        boolean r = signal.await(10, TimeUnit.SECONDS);
-        if (!r) {
-            throw new TimeoutException("DHT bootstrap timeout");
-        }
     }
 
     private void emitDataToApp(String eventType, String downloadId, WritableMap data) {
