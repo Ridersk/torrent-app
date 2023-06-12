@@ -196,15 +196,18 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
                         emitDataToApp("STATE_UPDATE", downloadId, alertData);
                         break;
                     case TORRENT_ERROR:
+                    case DHT_ERROR:
+                    case FILE_ERROR:
+                    case LSD_ERROR:
+                    case PEER_ERROR:
+                    case PORTMAP_ERROR:
+                    case SESSION_ERROR:
+                    case TRACKER_ERROR:
+                    case UDP_ERROR:
                         log("TORRENT_ERROR: " + alert.what());
                         log("Is paused = " + ((TorrentErrorAlert) alert).handle().status());
+                        alertData.putString("error", alert.message());
                         emitDataToApp("TORRENT_ERROR", downloadId, alertData);
-                        signal.countDown();
-                        break;
-                    case DHT_ERROR:
-                        log("DHT_ERROR: " + alert.message(), "e");
-                        log(alert.message());
-                        emitDataToApp("DHT_ERROR", downloadId, alertData);
                         signal.countDown();
                         break;
                     default:

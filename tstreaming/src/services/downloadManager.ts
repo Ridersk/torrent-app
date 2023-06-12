@@ -28,7 +28,8 @@ export class DownloadManager {
       status: "DOWNLOADING",
       progress: 0,
     });
-    this.processTorrentDownload(download._id, magnetLink);
+    console.log("Starting Torrent...");
+    this.torrentService.download(download._id, magnetLink);
     return download;
   }
 
@@ -51,11 +52,14 @@ export class DownloadManager {
   }
 
   public async restart(downloadId: string) {
-    // await this.torrentService.restart(downloadId);
-    // this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
-  }
+    const download = await this.downloadDb.get(downloadId);
 
-  private processTorrentDownload(downloadId: string, magnetLink: string) {
+    if (!download) {
+      console.error("Download not found");
+      return;
+    }
+
+    const magnetLink = download.source;
     console.log("Starting Torrent...");
     this.torrentService.download(downloadId, magnetLink);
   }
