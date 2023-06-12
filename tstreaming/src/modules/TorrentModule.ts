@@ -1,6 +1,6 @@
 import {NativeModules} from "react-native";
 
-const {NativeTorrentModule} = NativeModules;
+const {TorrentModule} = NativeModules;
 
 export type AlertType =
   | "TORRENT_INFO"
@@ -14,10 +14,11 @@ export type AlertType =
   | "DHT_ERROR"
   | "ERROR";
 
-export interface NativeTorrentModuleInterface {
-  download(downloadId: string, magnetLink: string): void;
+export interface TorrentModuleInterface {
+  add(downloadId: string, magnetLink: string): void;
   pause(downloadId: string): Promise<void>;
   resume(downloadId: string): Promise<void>;
+  resume(downloadId: string, magnetLink: string): void;
 }
 
-export default NativeTorrentModule as NativeTorrentModuleInterface;
+export default TorrentModule as TorrentModuleInterface;

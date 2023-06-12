@@ -1,18 +1,16 @@
 import {DeviceEventEmitter} from "react-native";
 import {RealmDatabase} from "../database/realm";
 import {DownloadObject} from "../database/realm/objects/download";
-import NativeTorrentModule, {
-  NativeTorrentModuleInterface,
-} from "../modules/NativeTorrentModule";
+import TorrentModule, {TorrentModuleInterface} from "../modules/TorrentModule";
 
 export class DownloadManager {
   private downloadDb: RealmDatabase;
-  private torrentService: NativeTorrentModuleInterface;
+  private torrentService: TorrentModuleInterface;
 
   constructor() {
     this.downloadDb = new RealmDatabase(DownloadObject);
-    this.torrentService = NativeTorrentModule;
-    this.addNativeTorrentListeners();
+    this.torrentService = TorrentModule;
+    this.addTorrentListeners();
   }
 
   public getDownloadsListener(callback: (data: any) => void) {
@@ -29,26 +27,35 @@ export class DownloadManager {
       progress: 0,
     });
     console.log("Starting Torrent...");
-    this.torrentService.download(download._id, magnetLink);
+    this.torrentService.add(download._id, magnetLink);
     return download;
   }
 
   public async pause(downloadId: string) {
     try {
       await this.torrentService.pause(downloadId);
-      this.downloadDb.update(downloadId, {status: "PAUSED"});
     } catch (error) {
       console.error(error);
     }
+    this.downloadDb.update(downloadId, {status: "PAUSED"});
   }
 
   public async resume(downloadId: string) {
     try {
       await this.torrentService.resume(downloadId);
-      this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
     } catch (error) {
       console.error(error);
+      const download = await this.downloadDb.get(downloadId);
+
+      if (!download) {
+        console.error("Download not found");
+        return;
+      }
+
+      const magnetLink = download.source;
+      this.torrentService.add(downloadId, magnetLink);
     }
+    this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
   }
 
   public async restart(downloadId: string) {
@@ -61,10 +68,22 @@ export class DownloadManager {
 
     const magnetLink = download.source;
     console.log("Starting Torrent...");
-    this.torrentService.download(downloadId, magnetLink);
+    this.torrentService.add(downloadId, magnetLink);
+    this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
   }
 
-  private addNativeTorrentListeners() {
+  public async pauseUnfinishedDownloads() {
+    const downloads = await this.downloadDb.getAllByFilters({
+      status: "DOWNLOADING",
+    });
+    console.log("Pausing Torrent downloads...");
+    console.log(`UNFINISHED_DOWNLOADS: ${downloads.length}`, downloads);
+    for (const download of downloads) {
+      this.pause(download._id);
+    }
+  }
+
+  private addTorrentListeners() {
     DeviceEventEmitter.addListener("TORRENT_INFO", data => {
       console.log("Torrent info: ", data);
       this.addTorrentInfo(data.downloadId, data);

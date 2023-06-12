@@ -28,6 +28,22 @@ export class RealmDatabase implements IDatabase {
     return Promise.resolve(Array.from(objects));
   }
 
+  getAllByFilters(filters: {[key: string]: any}): Promise<any[]> {
+    let filtersStringList = [];
+    let query = "";
+
+    for (const filter of Object.keys(filters)) {
+      filtersStringList.push(`${filter} = "${filters[filter]}"`);
+    }
+
+    if (filtersStringList.length > 0) {
+      query = filtersStringList.join(" && ");
+    }
+
+    const objects = this.realm.objects(this.schema.name).filtered(query);
+    return Promise.resolve(Array.from(objects));
+  }
+
   create(data: object): Promise<Realm.Object> {
     return this.realm.write(async () => {
       const newObject = this.realm.create(this.schema.name, {

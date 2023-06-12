@@ -23,6 +23,7 @@ export default () => {
       setDownloads(_downloads);
       setRefresh(false);
     });
+    downloadManager.pauseUnfinishedDownloads();
   }, []);
 
   function renderDownload({item}: {item: DownloadModel}) {

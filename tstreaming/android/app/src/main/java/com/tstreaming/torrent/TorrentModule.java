@@ -31,14 +31,14 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 
-public class NativeTorrentModule extends ReactContextBaseJavaModule {
+public class TorrentModule extends ReactContextBaseJavaModule {
 
     private final Context context;
     private final Map<String, SessionManager> downloadsInProcessing;
 
-    private static final String TAG = NativeTorrentModule.class.getSimpleName();
+    private static final String TAG = TorrentModule.class.getSimpleName();
 
-    public NativeTorrentModule(ReactApplicationContext context) {
+    public TorrentModule(ReactApplicationContext context) {
         super(context);
         this.context = context;
         this.downloadsInProcessing = new HashMap<>();
@@ -50,8 +50,8 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void download(String downloadId, String magnetLink) {
-        new Thread(() -> downloadProcess(downloadId, magnetLink)).start();
+    public void add(String downloadId, String magnetLink) {
+        new Thread(() -> addDownload(downloadId, magnetLink)).start();
     }
 
     @ReactMethod
@@ -84,7 +84,7 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
         promise.resolve(null);
     }
 
-    private void downloadProcess(String downloadId, String magnetLink) {
+    private void addDownload(String downloadId, String magnetLink) {
         File rootFolderLocation = this.context.getExternalFilesDir(null);
         SessionManager sessionManager = new SessionManager();
 
@@ -190,15 +190,16 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
                             emitDataToApp("PIECE_FINISHED", downloadId, alertData);
                         }
                         break;
+                    case STATE_UPDATE:
+                        log("STATE_UPDATE: " + alert.message());
+                        emitDataToApp("STATE_UPDATE", downloadId, alertData);
+                        break;
                     case TORRENT_FINISHED:
                         ((TorrentFinishedAlert) alert).handle().pause();
                         log("TORRENT_FINISHED: " + alert.message());
                         emitDataToApp("TORRENT_FINISHED", downloadId, alertData);
+                        downloadsInProcessing.remove(downloadId);
                         signal.countDown();
-                        break;
-                    case STATE_UPDATE:
-                        log("STATE_UPDATE: " + alert.message());
-                        emitDataToApp("STATE_UPDATE", downloadId, alertData);
                         break;
                     case TORRENT_ERROR:
                     case DHT_ERROR:
@@ -209,10 +210,19 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
                     case SESSION_ERROR:
                     case TRACKER_ERROR:
                     case UDP_ERROR:
+                    case METADATA_FAILED:
+                    case FILE_RENAME_FAILED:
+                    case TORRENT_DELETE_FAILED:
+                    case SAVE_RESUME_DATA_FAILED:
+                    case HASH_FAILED:
+                    case LISTEN_FAILED:
+                    case SCRAPE_FAILED:
+                    case STORAGE_MOVED_FAILED:
                         log("TORRENT_ERROR: " + alert.what());
                         log("Is paused = " + ((TorrentErrorAlert) alert).handle().status());
                         alertData.putString("error", alert.message());
                         emitDataToApp("TORRENT_ERROR", downloadId, alertData);
+                        downloadsInProcessing.remove(downloadId);
                         signal.countDown();
                         break;
                     default:
