@@ -137,6 +137,7 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
     private void addListener(SessionManager session, String downloadId, CountDownLatch signal) {
         AlertListener listener = new AlertListener() {
             int progress = 0;
+            long lastProgressEventTime = System.currentTimeMillis();
 
             @Override
             public int[] types() {
@@ -174,8 +175,12 @@ public class NativeTorrentModule extends ReactContextBaseJavaModule {
                         int newProgress = (int) (
                                 ((PieceFinishedAlert) alert).handle().status().progress() * 100
                         );
-                        if (progress != newProgress) {
+                        long currentProgressEventTime = System.currentTimeMillis();
+
+                        if (progress != newProgress &&
+                                currentProgressEventTime - lastProgressEventTime > 500) {
                             progress = newProgress;
+                            lastProgressEventTime = currentProgressEventTime;
                             index = ((PieceFinishedAlert) alert).pieceIndex();
                             log("Progress: " + progress + "%, "
                                     + "Rate: " + session.downloadRate() + ", "
