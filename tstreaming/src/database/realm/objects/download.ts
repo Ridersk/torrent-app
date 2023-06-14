@@ -7,11 +7,16 @@ export class DownloadObject extends Realm.Object<DownloadModel> {
     primaryKey: "_id",
     properties: {
       _id: {type: "string", indexed: true},
-      name: "string",
+      downloadedSize: "int",
+      downloadRate: "int",
       location: "string?",
+      name: "string",
+      peers: "int",
+      progress: "int",
+      seeders: "int",
       source: "string",
       status: "string",
-      progress: "int",
+      totalSize: "int",
     },
   };
 }

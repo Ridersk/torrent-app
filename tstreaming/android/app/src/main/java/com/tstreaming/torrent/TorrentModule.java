@@ -14,6 +14,7 @@ import com.frostwire.jlibtorrent.SettingsPack;
 import com.frostwire.jlibtorrent.Sha1Hash;
 import com.frostwire.jlibtorrent.TorrentHandle;
 import com.frostwire.jlibtorrent.TorrentInfo;
+import com.frostwire.jlibtorrent.TorrentStatus;
 import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
@@ -29,6 +30,7 @@ import android.util.Log;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -56,11 +58,13 @@ public class TorrentModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void add(String downloadId, String magnetLink) {
+        log("Action: ADD download " + downloadId);
         new Thread(() -> addDownload(downloadId, magnetLink)).start();
     }
 
     @ReactMethod
     public void pause(String downloadId, Promise promise) {
+        log("Action: PAUSE download " + downloadId);
         SessionManager sessionManager = this.sessionManagers.get(downloadId);
 
         if (sessionManager == null) {
@@ -76,6 +80,7 @@ public class TorrentModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void resume(String downloadId, Promise promise) {
+        log("Action: RESUME download " + downloadId);
         SessionManager sessionManager = this.sessionManagers.get(downloadId);
 
         if (sessionManager == null) {
@@ -124,8 +129,9 @@ public class TorrentModule extends ReactContextBaseJavaModule {
             log(e.getMessage(), "e");
             WritableMap errorData = Arguments.createMap();
             errorData.putString("error", e.getMessage());
-            emitDataToApp("ERROR", downloadId, errorData);
+            emitDataToApp("ADD_ERROR", downloadId, errorData);
         } finally {
+            log("Closing sessionManager to downloadId: " + downloadId);
             sessionManager.stop();
         }
     }
@@ -221,13 +227,16 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                         downloadsInProgress.put(downloadId, torrentInfo.infoHash());
                         alertData.putString("name", torrentInfo.name());
                         alertData.putString("folderLocation", folderLocation);
+                        alertData.putInt("totalSize", (int) torrentInfo.totalSize());
                         emitDataToApp("TORRENT_INFO", downloadId, alertData);
                         break;
                     case PIECE_FINISHED:
-                        int newProgress = (int) (
-                                ((PieceFinishedAlert) alert).handle().status().progress() * 100
-                        );
+                        torrentInfo = torrentHandle.torrentFile();
+                        TorrentStatus status = torrentHandle.status();
+                        int newProgress = (int) (status.progress() * 100);
+                        int downloadedSize = (int) (torrentInfo.totalSize() * status.progress());
                         long currentProgressEventTime = System.currentTimeMillis();
+                        int downloadRate = (int) session.downloadRate();
 
                         if (progress != newProgress &&
                                 currentProgressEventTime - lastProgressEventTime > 500) {
@@ -235,16 +244,16 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                             lastProgressEventTime = currentProgressEventTime;
                             index = ((PieceFinishedAlert) alert).pieceIndex();
                             log("Progress: " + progress + "%, "
-                                    + "Rate: " + session.downloadRate() + ", "
+                                    + "Rate: " + downloadRate + ", "
                                     + "Piece: " + index
                             );
+                            alertData.putInt("downloadedSize", downloadedSize);
+                            alertData.putInt("downloadRate", downloadRate);
+                            alertData.putInt("peers", status.numPeers());
                             alertData.putInt("progress", progress);
+                            alertData.putInt("seeders", status.numSeeds());
                             emitDataToApp("PIECE_FINISHED", downloadId, alertData);
                         }
-                        break;
-                    case STATE_UPDATE:
-                        log("STATE_UPDATE: " + alert.message());
-                        emitDataToApp("STATE_UPDATE", downloadId, alertData);
                         break;
                     case TORRENT_FINISHED:
                         ((TorrentFinishedAlert) alert).handle().pause();
@@ -261,7 +270,7 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                     case PEER_ERROR:
                     case PORTMAP_ERROR:
                     case SESSION_ERROR:
-                    case TRACKER_ERROR:
+//                    case TRACKER_ERROR:
                     case UDP_ERROR:
                     case METADATA_FAILED:
                     case FILE_RENAME_FAILED:
@@ -272,7 +281,6 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                     case SCRAPE_FAILED:
                     case STORAGE_MOVED_FAILED:
                         log("TORRENT_ERROR: " + alert.what());
-                        log("Is paused = " + ((TorrentErrorAlert) alert).handle().status());
                         alertData.putString("error", alert.message());
                         emitDataToApp("TORRENT_ERROR", downloadId, alertData);
                         sessionManagers.remove(downloadId);

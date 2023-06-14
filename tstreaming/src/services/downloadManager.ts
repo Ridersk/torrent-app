@@ -3,28 +3,51 @@ import {RealmDatabase} from "../database/realm";
 import {DownloadObject} from "../database/realm/objects/download";
 import TorrentModule, {TorrentModuleInterface} from "../modules/TorrentModule";
 
-export class DownloadManager {
+export default class DownloadManager {
+  private static instance: DownloadManager;
+
   private downloadDb: RealmDatabase;
   private torrentService: TorrentModuleInterface;
 
-  constructor() {
+  private constructor() {
     this.downloadDb = new RealmDatabase(DownloadObject);
     this.torrentService = TorrentModule;
-    this.addTorrentListeners();
+  }
+
+  public static getInstance(): DownloadManager {
+    if (!DownloadManager.instance) {
+      DownloadManager.instance = new DownloadManager();
+      DownloadManager.instance.addTorrentListeners();
+    }
+    return DownloadManager.instance;
   }
 
   public getDownloadsListener(callback: (data: any) => void) {
-    this.downloadDb.addListener((data: any) => {
+    this.downloadDb.addObjectsListener((data: any) => {
+      callback(data);
+    });
+  }
+
+  public getDownloadListener(
+    downloadId: string,
+    callback: (data: any) => void,
+  ) {
+    this.downloadDb.addObjectListener(downloadId, (data: any) => {
       callback(data);
     });
   }
 
   public async add(magnetLink: string) {
     const download = await this.downloadDb.create({
+      downloadedSize: 0,
+      downloadRate: 0,
       name: "Searching...",
+      peers: 0,
+      progress: 0,
+      seeders: 0,
       source: magnetLink,
       status: "DOWNLOADING",
-      progress: 0,
+      totalSize: 0,
     });
     console.log("Starting Torrent...");
     this.torrentService.add(download._id, magnetLink);
@@ -37,7 +60,7 @@ export class DownloadManager {
     } catch (error) {
       console.error(error);
     }
-    this.downloadDb.update(downloadId, {status: "PAUSED"});
+    await this.downloadDb.update(downloadId, {status: "PAUSED"});
   }
 
   public async resume(downloadId: string) {
@@ -55,7 +78,7 @@ export class DownloadManager {
       const magnetLink = download.source;
       this.torrentService.add(downloadId, magnetLink);
     }
-    this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
+    await this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
   }
 
   public async restart(downloadId: string) {
@@ -69,7 +92,7 @@ export class DownloadManager {
     const magnetLink = download.source;
     console.log("Starting Torrent...");
     this.torrentService.add(downloadId, magnetLink);
-    this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
+    await this.downloadDb.update(downloadId, {status: "DOWNLOADING"});
   }
 
   public async pauseUnfinishedDownloads() {
@@ -92,45 +115,70 @@ export class DownloadManager {
     }
   }
 
-  private addTorrentListeners() {
+  public addTorrentListeners() {
+    DeviceEventEmitter.addListener("ADD_TORRENT", data =>
+      console.log("Add torrent: ", data),
+    );
     DeviceEventEmitter.addListener("TORRENT_INFO", data => {
       console.log("Torrent info: ", data);
       this.addTorrentInfo(data.downloadId, data);
     });
-    DeviceEventEmitter.addListener("ADD_TORRENT", data =>
-      console.log("Add torrent: ", data),
-    );
     DeviceEventEmitter.addListener("PIECE_FINISHED", data => {
-      // console.log("Progress: ", data);
-      this.updateDownloadProgress(data.downloadId, data.progress);
+      this.updateDownload(data.downloadId, data);
     });
     DeviceEventEmitter.addListener("TORRENT_FINISHED", data => {
       console.log("Torrent finished: ", data);
       this.finishDownload(data.downloadId);
     });
-    DeviceEventEmitter.addListener("METADATA_RECEIVED", data =>
-      console.log("Metadata: ", data),
-    );
-    DeviceEventEmitter.addListener("DHT_ERROR", data =>
-      console.error("DHT Error: ", data),
-    );
-    DeviceEventEmitter.addListener("ERROR", data =>
-      console.error("Error: ", data),
-    );
-  }
-
-  private addTorrentInfo(downloadId: string, info: any) {
-    this.downloadDb.update(downloadId, {
-      name: info.name,
-      location: info.folderLocation,
+    DeviceEventEmitter.addListener("TORRENT_ERROR", data => {
+      console.error("Torrent Error: ", data);
+      this.updateDownloadToError(data.downloadId);
+    });
+    DeviceEventEmitter.addListener("ADD_ERROR", data => {
+      console.error("Add Error: ", data);
+      this.updateDownloadToError(data.downloadId);
     });
   }
 
-  private updateDownloadProgress(downloadId: string, progress: number) {
-    this.downloadDb.update(downloadId, {progress});
+  private async addTorrentInfo(downloadId: string, info: any) {
+    await this.downloadDb.update(downloadId, {
+      name: info.name,
+      location: info.folderLocation,
+      totalSize: info.totalSize,
+    });
   }
 
-  private finishDownload(downloadId: string) {
-    this.downloadDb.update(downloadId, {progress: 100, status: "COMPLETED"});
+  private async updateDownload(downloadId: string, data: any) {
+    await this.downloadDb.update(downloadId, {
+      downloadedSize: data.downloadedSize,
+      downloadRate: data.downloadRate,
+      peers: data.peers,
+      progress: data.progress,
+      seeders: data.seeders,
+    });
+  }
+
+  private async finishDownload(downloadId: string) {
+    const download = await this.downloadDb.get(downloadId);
+
+    if (!download) {
+      console.error("Download not found");
+      return;
+    }
+
+    await this.downloadDb.update(downloadId, {
+      downloadedSize: download.totalSize,
+      downloadRate: 0,
+      peers: 0,
+      progress: 100,
+      seeders: 0,
+      status: "COMPLETED",
+    });
+  }
+
+  private async updateDownloadToError(downloadId: string) {
+    await this.downloadDb.update(downloadId, {
+      status: "ERROR",
+    });
   }
 }

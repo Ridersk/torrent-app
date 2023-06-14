@@ -3,16 +3,12 @@ import {NativeModules} from "react-native";
 const {TorrentModule} = NativeModules;
 
 export type AlertType =
-  | "TORRENT_INFO"
   | "ADD_TORRENT"
-  | "METADATA_RECEIVED"
-  | "BLOCK_FINISHED"
+  | "TORRENT_INFO"
   | "PIECE_FINISHED"
   | "TORRENT_FINISHED"
-  | "STATE_UPDATE"
   | "TORRENT_ERROR"
-  | "DHT_ERROR"
-  | "ERROR";
+  | "ADD_ERROR";
 
 export interface TorrentModuleInterface {
   add(downloadId: string, magnetLink: string): void;

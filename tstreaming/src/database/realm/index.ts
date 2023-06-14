@@ -58,7 +58,7 @@ export class RealmDatabase implements IDatabase {
     const realmObject = this.realm.objectForPrimaryKey(this.schema.name, id);
 
     if (!realmObject) {
-      throw new Error("Object not found");
+      throw new Error(`Object not found: ${id}`);
     }
 
     this.realm.write(() => {
@@ -86,8 +86,18 @@ export class RealmDatabase implements IDatabase {
     return Promise.resolve();
   }
 
-  addListener(callback: (data: any) => void) {
+  addObjectsListener(callback: (data: any) => void) {
     const objects = this.realm.objects(this.schema.name);
     objects.addListener(callback);
+  }
+
+  addObjectListener(id: string, callback: (data: any) => void) {
+    const realmObject = this.realm.objectForPrimaryKey(this.schema.name, id);
+
+    if (!realmObject) {
+      throw new Error("Object not found");
+    }
+
+    realmObject.addListener(callback);
   }
 }

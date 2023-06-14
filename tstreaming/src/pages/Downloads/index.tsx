@@ -1,16 +1,21 @@
 import React, {useEffect, useState} from "react";
-import {View, Text, FlatList, TouchableOpacity} from "react-native";
-import Icon from "react-native-vector-icons/FontAwesome";
+import {View} from "react-native";
 
 import styles from "./styles";
-import {DownloadManager} from "../../services/downloadManager";
+import DownloadManager from "../../services/downloadManager";
 import {DownloadModel} from "../../models/download";
 import Search from "../../components/Search";
+import DownloadList, {ActionType} from "./List";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { AppRouteParams } from "../types";
 
 export default () => {
-  const downloadManager = new DownloadManager();
+  const navigation = useNavigation<NativeStackNavigationProp<AppRouteParams>>();
+  const downloadManager = DownloadManager.getInstance();
   const [downloads, setDownloads] = useState<DownloadModel[]>([]);
-  const [refresh, setRefresh] = useState<boolean>(false);
+  const [, updateState] = React.useState<object>();
+ const forceUpdate = React.useCallback(() => updateState({}), []);
 
   async function handleAddTorrent(magnetLink: string) {
     console.log("Add download:", magnetLink);
@@ -19,69 +24,42 @@ export default () => {
 
   useEffect(() => {
     downloadManager.getDownloadsListener(_downloads => {
-      setRefresh(true);
       setDownloads(_downloads);
-      setRefresh(false);
+      forceUpdate();
     });
     downloadManager.pauseUnfinishedDownloads();
   }, []);
 
-  function renderDownload({item}: {item: DownloadModel}) {
-    async function handleResume() {
-      await downloadManager.resume(item._id);
+  async function handleDownloadListAction(action: ActionType, id: string) {
+    console.log("Handle action:", action, id)
+    switch (action) {
+      case "resume":
+        await downloadManager.resume(id);
+        break;
+      case "pause":
+        await downloadManager.pause(id);
+        break;
+      case "restart":
+        await downloadManager.restart(id);
+        break;
+      case "remove":
+        await downloadManager.remove(id);
+        break;
     }
+  }
 
-    async function handlePause() {
-      await downloadManager.pause(item._id);
-    }
-
-    async function handleRestart() {
-      await downloadManager.restart(item._id);
-    }
-
-    async function handleRemove() {
-      await downloadManager.remove(item._id);
-    }
-
-    return (
-      <View style={styles.downloadItemContainer}>
-        <View style={styles.downloadItemTitle}>
-          <Text>{item.name}</Text>
-        </View>
-        <View style={styles.downloadItemActions}>
-          <Text>{item.progress}</Text>
-          {item.status === "PAUSED" && (
-            <TouchableOpacity onPress={handleResume}>
-              <Icon name="play" size={24} color="#696969" />
-            </TouchableOpacity>
-          )}
-          {item.status === "DOWNLOADING" && (
-            <TouchableOpacity onPress={handlePause}>
-              <Icon name="pause" size={24} color="#696969" />
-            </TouchableOpacity>
-          )}
-          {(item.status === "COMPLETED" || item.status === "ERROR") && (
-            <TouchableOpacity onPress={handleRestart}>
-              <Icon name="rotate-right" size={24} color="#696969" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={handleRemove}>
-            <Icon name="trash" size={24} color="#696969" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+  function handleOpenDownloadDetailPage(id: string): void {
+    console.log("Open download detail:", id);
+    navigation.navigate("DownloadDetails", {id});
   }
 
   return (
     <View style={styles.container}>
       <Search onSubmit={handleAddTorrent} />
-      <FlatList
-        style={styles.downloadList}
-        keyExtractor={(item, index) => index.toString()}
-        data={downloads}
-        refreshing={refresh}
-        renderItem={renderDownload}
+      <DownloadList
+        items={downloads}
+        onAction={handleDownloadListAction}
+        onSelect={handleOpenDownloadDetailPage}
       />
     </View>
   );

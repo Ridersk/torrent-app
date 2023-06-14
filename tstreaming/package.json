@@ -10,6 +10,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-community/clipboard": "^1.5.1",
+    "@react-native-community/progress-bar-android": "^1.0.5",
     "@react-navigation/native": "^6.1.6",
     "@react-navigation/native-stack": "^6.9.12",
     "@realm/react": "^0.4.3",
