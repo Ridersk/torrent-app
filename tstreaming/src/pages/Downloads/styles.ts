@@ -36,7 +36,7 @@ export default StyleSheet.create({
     fontSize: 18,
   },
   downloadItemActions: {
-    flex: 1.5,
+    flex: 2,
     flexDirection: "row",
     justifyContent: "space-between",
   },

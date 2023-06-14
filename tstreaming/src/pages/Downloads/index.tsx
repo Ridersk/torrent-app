@@ -39,6 +39,10 @@ export default () => {
       await downloadManager.restart(item._id);
     }
 
+    async function handleRemove() {
+      await downloadManager.remove(item._id);
+    }
+
     return (
       <View style={styles.downloadItemContainer}>
         <View style={styles.downloadItemTitle}>
@@ -61,6 +65,9 @@ export default () => {
               <Icon name="rotate-right" size={24} color="#696969" />
             </TouchableOpacity>
           )}
+          <TouchableOpacity onPress={handleRemove}>
+            <Icon name="trash" size={24} color="#696969" />
+          </TouchableOpacity>
         </View>
       </View>
     );

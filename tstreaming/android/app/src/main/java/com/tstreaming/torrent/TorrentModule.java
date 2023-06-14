@@ -11,12 +11,15 @@ import com.frostwire.jlibtorrent.AlertListener;
 import com.frostwire.jlibtorrent.SessionManager;
 import com.frostwire.jlibtorrent.SessionParams;
 import com.frostwire.jlibtorrent.SettingsPack;
+import com.frostwire.jlibtorrent.Sha1Hash;
+import com.frostwire.jlibtorrent.TorrentHandle;
 import com.frostwire.jlibtorrent.TorrentInfo;
 import com.frostwire.jlibtorrent.alerts.AddTorrentAlert;
 import com.frostwire.jlibtorrent.alerts.Alert;
 import com.frostwire.jlibtorrent.alerts.AlertType;
 import com.frostwire.jlibtorrent.alerts.MetadataReceivedAlert;
 import com.frostwire.jlibtorrent.alerts.PieceFinishedAlert;
+import com.frostwire.jlibtorrent.alerts.TorrentAlert;
 import com.frostwire.jlibtorrent.alerts.TorrentErrorAlert;
 import com.frostwire.jlibtorrent.alerts.TorrentFinishedAlert;
 import com.frostwire.jlibtorrent.swig.settings_pack;
@@ -34,14 +37,16 @@ import java.util.concurrent.CountDownLatch;
 public class TorrentModule extends ReactContextBaseJavaModule {
 
     private final Context context;
-    private final Map<String, SessionManager> downloadsInProcessing;
+    private final Map<String, SessionManager> sessionManagers;
+    private final Map<String, Sha1Hash> downloadsInProgress;
 
     private static final String TAG = TorrentModule.class.getSimpleName();
 
     public TorrentModule(ReactApplicationContext context) {
         super(context);
         this.context = context;
-        this.downloadsInProcessing = new HashMap<>();
+        this.sessionManagers = new HashMap<>();
+        this.downloadsInProgress = new HashMap<>();
     }
 
     @Override
@@ -56,11 +61,11 @@ public class TorrentModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void pause(String downloadId, Promise promise) {
-        SessionManager sessionManager = this.downloadsInProcessing.get(downloadId);
+        SessionManager sessionManager = this.sessionManagers.get(downloadId);
 
         if (sessionManager == null) {
             String errorMsg = "Session Manager doesn't exists for download id " + downloadId;
-            log(errorMsg);
+            log(errorMsg, "e");
             promise.reject("DOWNLOAD_PROCESS_NOT_FOUND", errorMsg);
             return;
         }
@@ -71,11 +76,11 @@ public class TorrentModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void resume(String downloadId, Promise promise) {
-        SessionManager sessionManager = this.downloadsInProcessing.get(downloadId);
+        SessionManager sessionManager = this.sessionManagers.get(downloadId);
 
         if (sessionManager == null) {
             String errorMsg = "Session Manager doesn't exists for download id " + downloadId;
-            log(errorMsg);
+            log(errorMsg, "e");
             promise.reject("DOWNLOAD_PROCESS_NOT_FOUND", errorMsg);
             return;
         }
@@ -84,12 +89,33 @@ public class TorrentModule extends ReactContextBaseJavaModule {
         promise.resolve(null);
     }
 
+    @ReactMethod
+    public void remove(String downloadId, Promise promise) {
+        SessionManager sessionManager = this.sessionManagers.get(downloadId);
+        Sha1Hash downloadHash = this.downloadsInProgress.get(downloadId);
+
+        if (sessionManager != null && downloadHash != null) {
+            TorrentHandle torrentHandle = sessionManager.find(downloadHash);
+            if (torrentHandle != null) {
+                sessionManager.remove(torrentHandle);
+                this.sessionManagers.remove(downloadId);
+                this.downloadsInProgress.remove(downloadId);
+            }
+        }
+
+        boolean folderRemoved = this.removeDownloadFolder(downloadId);
+        if (folderRemoved) {
+            promise.resolve(null);
+        } else {
+            promise.reject("REMOVE_EXCEPTION", "Folder has not been deleted");
+        }
+    }
+
     private void addDownload(String downloadId, String magnetLink) {
-        File rootFolderLocation = this.context.getExternalFilesDir(null);
         SessionManager sessionManager = new SessionManager();
 
         try {
-            File folderLocation = makeDownloadFolder(rootFolderLocation, downloadId);
+            File folderLocation = makeDownloadFolder(downloadId);
 
             log("Magnet link to process: " + magnetLink);
             startSession(sessionManager);
@@ -116,22 +142,51 @@ public class TorrentModule extends ReactContextBaseJavaModule {
         log("Storage location: " + folderLocation.getAbsolutePath());
         log("Starting download");
         sessionManager.download(magnetLink, folderLocation);
-        this.downloadsInProcessing.put(downloadId, sessionManager);
+        this.sessionManagers.put(downloadId, sessionManager);
 
         signal.await();
     }
 
-    private File makeDownloadFolder(File rootFolder, String downloadId) throws IOException {
-        File folder = new File(rootFolder.getAbsolutePath(), downloadId);
+    private File makeDownloadFolder(String downloadId) throws IOException {
+        File downloadFolder = getDownloadFolder(downloadId);
 
-        if (!folder.exists()) {
-            if (!folder.mkdirs()) {
+        log("Folder to download: " + downloadFolder.getAbsolutePath());
+        if (!downloadFolder.exists()) {
+            if (!downloadFolder.mkdirs()) {
                 throw new IOException("Error on try creating folder");
             }
             log("Folder created");
         }
 
-        return folder;
+        return downloadFolder;
+    }
+
+    private boolean removeDownloadFolder(String downloadId) {
+        File downloadFolder = getDownloadFolder(downloadId);
+
+        log("Folder to remove: " + downloadFolder.getAbsolutePath());
+        if (!downloadFolder.exists()) {
+            return true;
+        }
+
+        return deleteFolderRecursively(downloadFolder);
+    }
+
+    public static boolean deleteFolderRecursively(File folder) {
+        if (folder.isDirectory()) {
+            File[] files = folder.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    deleteFolderRecursively(file);
+                }
+            }
+        }
+        return folder.delete();
+    }
+
+    private File getDownloadFolder(String downloadId) {
+        File rootFolder = this.context.getExternalFilesDir(null);
+        return new File(rootFolder.getAbsolutePath(), downloadId);
     }
 
     private void addListener(SessionManager session, String downloadId, CountDownLatch signal) {
@@ -149,24 +204,21 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                 AlertType type = alert.type();
                 int index;
                 WritableMap alertData = Arguments.createMap();
+                TorrentHandle torrentHandle = ((TorrentAlert<?>) alert).handle();
 
                 switch (type) {
                     case ADD_TORRENT:
-                        ((AddTorrentAlert) alert).handle().resume();
-                        log("ADD_TORRENT: " + alert.message());
+                        log("ADD_TORRENT: " + alert.message() + " Hash: " + torrentHandle.infoHash());
+                        torrentHandle.resume();
                         emitDataToApp("ADD_TORRENT", downloadId, alertData);
                         break;
                     case METADATA_RECEIVED:
-                        TorrentInfo torrentInfo = ((MetadataReceivedAlert) alert)
-                                .handle()
-                                .torrentFile();
+                        TorrentInfo torrentInfo = torrentHandle.torrentFile();
                         String folderLocation = ((MetadataReceivedAlert) alert).handle().savePath();
-
-
-                        ((MetadataReceivedAlert) alert).handle().torrentFile();
-
-                        log("METADATA_RECEIVED: " + torrentInfo.name() + " - " + folderLocation);
-
+                        log("METADATA_RECEIVED: " + torrentInfo.name() +
+                                " Hash: " + torrentInfo.infoHash() +
+                                " Folder: " + folderLocation);
+                        downloadsInProgress.put(downloadId, torrentInfo.infoHash());
                         alertData.putString("name", torrentInfo.name());
                         alertData.putString("folderLocation", folderLocation);
                         emitDataToApp("TORRENT_INFO", downloadId, alertData);
@@ -198,7 +250,8 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                         ((TorrentFinishedAlert) alert).handle().pause();
                         log("TORRENT_FINISHED: " + alert.message());
                         emitDataToApp("TORRENT_FINISHED", downloadId, alertData);
-                        downloadsInProcessing.remove(downloadId);
+                        sessionManagers.remove(downloadId);
+                        downloadsInProgress.remove(downloadId);
                         signal.countDown();
                         break;
                     case TORRENT_ERROR:
@@ -222,7 +275,8 @@ public class TorrentModule extends ReactContextBaseJavaModule {
                         log("Is paused = " + ((TorrentErrorAlert) alert).handle().status());
                         alertData.putString("error", alert.message());
                         emitDataToApp("TORRENT_ERROR", downloadId, alertData);
-                        downloadsInProcessing.remove(downloadId);
+                        sessionManagers.remove(downloadId);
+                        downloadsInProgress.remove(downloadId);
                         signal.countDown();
                         break;
                     default:

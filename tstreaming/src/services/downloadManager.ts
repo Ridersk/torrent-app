@@ -83,6 +83,15 @@ export class DownloadManager {
     }
   }
 
+  public async remove(downloadId: string) {
+    try {
+      await this.torrentService.remove(downloadId);
+      this.downloadDb.delete(downloadId);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   private addTorrentListeners() {
     DeviceEventEmitter.addListener("TORRENT_INFO", data => {
       console.log("Torrent info: ", data);
