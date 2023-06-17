@@ -55,4 +55,20 @@ export default StyleSheet.create({
     borderBottomColor: "#737373",
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  mediaContainer: {
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+  },
+  mediaTitle: {
+    fontSize: 24,
+    textAlign: "left",
+    margin: 10,
+    fontWeight: "bold",
+  },
+  mediaText: {
+    fontSize: 16,
+    textAlign: "left",
+    margin: 10,
+  },
 });

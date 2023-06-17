@@ -153,48 +153,6 @@ public class TorrentModule extends ReactContextBaseJavaModule {
         signal.await();
     }
 
-    private File makeDownloadFolder(String downloadId) throws IOException {
-        File downloadFolder = getDownloadFolder(downloadId);
-
-        log("Folder to download: " + downloadFolder.getAbsolutePath());
-        if (!downloadFolder.exists()) {
-            if (!downloadFolder.mkdirs()) {
-                throw new IOException("Error on try creating folder");
-            }
-            log("Folder created");
-        }
-
-        return downloadFolder;
-    }
-
-    private boolean removeDownloadFolder(String downloadId) {
-        File downloadFolder = getDownloadFolder(downloadId);
-
-        log("Folder to remove: " + downloadFolder.getAbsolutePath());
-        if (!downloadFolder.exists()) {
-            return true;
-        }
-
-        return deleteFolderRecursively(downloadFolder);
-    }
-
-    public static boolean deleteFolderRecursively(File folder) {
-        if (folder.isDirectory()) {
-            File[] files = folder.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    deleteFolderRecursively(file);
-                }
-            }
-        }
-        return folder.delete();
-    }
-
-    private File getDownloadFolder(String downloadId) {
-        File rootFolder = this.context.getExternalFilesDir(null);
-        return new File(rootFolder.getAbsolutePath(), downloadId);
-    }
-
     private void addListener(SessionManager session, String downloadId, CountDownLatch signal) {
         AlertListener listener = new AlertListener() {
             int progress = 0;
@@ -322,6 +280,48 @@ public class TorrentModule extends ReactContextBaseJavaModule {
         this.getReactApplicationContext().getJSModule(
                 DeviceEventManagerModule.RCTDeviceEventEmitter.class
         ).emit(eventType, data);
+    }
+
+    private File getDownloadFolder(String downloadId) {
+        File rootFolder = this.context.getExternalFilesDir(null);
+        return new File(rootFolder.getAbsolutePath(), downloadId);
+    }
+
+    private File makeDownloadFolder(String downloadId) throws IOException {
+        File downloadFolder = getDownloadFolder(downloadId);
+
+        log("Folder to download: " + downloadFolder.getAbsolutePath());
+        if (!downloadFolder.exists()) {
+            if (!downloadFolder.mkdirs()) {
+                throw new IOException("Error on try creating folder");
+            }
+            log("Folder created");
+        }
+
+        return downloadFolder;
+    }
+
+    private boolean removeDownloadFolder(String downloadId) {
+        File downloadFolder = getDownloadFolder(downloadId);
+
+        log("Folder to remove: " + downloadFolder.getAbsolutePath());
+        if (!downloadFolder.exists()) {
+            return true;
+        }
+
+        return deleteFolderRecursively(downloadFolder);
+    }
+
+    public static boolean deleteFolderRecursively(File folder) {
+        if (folder.isDirectory()) {
+            File[] files = folder.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    deleteFolderRecursively(file);
+                }
+            }
+        }
+        return folder.delete();
     }
 
     private void log(String message) {

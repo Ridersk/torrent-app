@@ -16,32 +16,39 @@ import DownloadManager from "../../services/downloadManager";
 import {AppRouteParams} from "../types";
 import {
   convertBytesComparisonToHumanReadable,
-  convertBytesToHumanReadable,
   convertBytesToHumanReadablePerSecond,
 } from "../../utils/units_conversor";
+import Medias from "./Medias";
 
 export default () => {
   const route = useRoute<RouteProp<AppRouteParams>>();
   const downloadId = route.params?.id;
   const downloadManager = DownloadManager.getInstance();
   const [downloadItem, setDownloadItem] = useState<DownloadModel>();
-  const [, updateState] = React.useState<object>();
-  const forceUpdate = React.useCallback(() => updateState({}), []);
+  const [torrentFolderPath, setTorrentFolderPath] = useState<string>();
 
   useEffect(() => {
-    console.log("Download id:", downloadId);
     if (downloadId) {
       downloadManager.getDownloadListener(downloadId, _downloadItem => {
         setDownloadItem(_downloadItem);
-        forceUpdate();
         console.log("Download Updated:", _downloadItem);
       });
     }
-  }, []);
+  }, [downloadId, downloadManager]);
 
-  const copyToClipboard = (text: string) => {
+  useEffect(() => {
+    if (
+      downloadItem &&
+      downloadItem.status === "COMPLETED" &&
+      downloadItem.location
+    ) {
+      setTorrentFolderPath(`${downloadItem.location}/${downloadItem.name}`);
+    }
+  }, [downloadItem]);
+
+  function copyToClipboard(text: string) {
     Clipboard.setString(text);
-  };
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -110,13 +117,16 @@ export default () => {
               <ProgressBar
                 style={styles.progress}
                 styleAttr="Horizontal"
-                color={downloadItem.status === "COMPLETED" ? "#00FF00" : "#2196F3"}
+                color={
+                  downloadItem.status === "COMPLETED" ? "#00FF00" : "#2196F3"
+                }
                 indeterminate={false}
                 progress={downloadItem.progress / 100}
               />
             </View>
             <View style={styles.separator} />
           </View>
+          <Medias folderPath={torrentFolderPath as string} />
         </View>
       )}
     </ScrollView>

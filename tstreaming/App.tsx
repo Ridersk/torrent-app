@@ -9,7 +9,7 @@ import React from "react";
 import {StatusBar, useColorScheme} from "react-native";
 
 import {Colors} from "react-native/Libraries/NewAppScreen";
-import Routes from "./src/pages";
+import Routes from "./src/pages/routes";
 
 function App(): JSX.Element {
   const isDarkMode = useColorScheme() === "dark";

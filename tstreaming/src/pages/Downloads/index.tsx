@@ -28,7 +28,7 @@ export default () => {
       forceUpdate();
     });
     downloadManager.pauseUnfinishedDownloads();
-  }, []);
+  }, [downloadManager, forceUpdate]);
 
   async function handleDownloadListAction(action: ActionType, id: string) {
     console.log("Handle action:", action, id)

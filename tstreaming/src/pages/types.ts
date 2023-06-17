@@ -1,4 +1,5 @@
 export type AppRouteParams = {
   Downloads: undefined,
-  DownloadDetails: { id: string }
+  DownloadDetails: { id: string },
+  VideoPlayer: { source: string }
 }

@@ -2,6 +2,7 @@ import {DeviceEventEmitter} from "react-native";
 import {RealmDatabase} from "../database/realm";
 import {DownloadObject} from "../database/realm/objects/download";
 import TorrentModule, {TorrentModuleInterface} from "../modules/TorrentModule";
+import { DownloadModel } from "../models/download";
 
 export default class DownloadManager {
   private static instance: DownloadManager;
@@ -30,10 +31,10 @@ export default class DownloadManager {
 
   public getDownloadListener(
     downloadId: string,
-    callback: (data: any) => void,
+    callback: (data: DownloadModel) => void,
   ) {
     this.downloadDb.addObjectListener(downloadId, (data: any) => {
-      callback(data);
+      callback(DownloadModel.from(data));
     });
   }
 
