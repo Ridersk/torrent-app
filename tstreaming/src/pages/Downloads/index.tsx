@@ -6,16 +6,16 @@ import DownloadManager from "../../services/downloadManager";
 import {DownloadModel} from "../../models/download";
 import Search from "../../components/Search";
 import DownloadList, {ActionType} from "./List";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { AppRouteParams } from "../types";
+import {useNavigation} from "@react-navigation/native";
+import {NativeStackNavigationProp} from "@react-navigation/native-stack";
+import {AppRouteParams} from "../types";
 
 export default () => {
   const navigation = useNavigation<NativeStackNavigationProp<AppRouteParams>>();
   const downloadManager = DownloadManager.getInstance();
   const [downloads, setDownloads] = useState<DownloadModel[]>([]);
   const [, updateState] = React.useState<object>();
- const forceUpdate = React.useCallback(() => updateState({}), []);
+  const forceUpdate = React.useCallback(() => updateState({}), []);
 
   async function handleAddTorrent(magnetLink: string) {
     console.log("Add download:", magnetLink);
@@ -31,7 +31,7 @@ export default () => {
   }, [downloadManager, forceUpdate]);
 
   async function handleDownloadListAction(action: ActionType, id: string) {
-    console.log("Handle action:", action, id)
+    console.log("Handle action:", action, id);
     switch (action) {
       case "resume":
         await downloadManager.resume(id);

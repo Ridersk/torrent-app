@@ -18,7 +18,7 @@ import {
   convertBytesComparisonToHumanReadable,
   convertBytesToHumanReadablePerSecond,
 } from "../../utils/units_conversor";
-import Medias from "./Medias";
+import Medias from "./MediaList";
 
 export default () => {
   const route = useRoute<RouteProp<AppRouteParams>>();
@@ -42,7 +42,7 @@ export default () => {
       downloadItem.status === "COMPLETED" &&
       downloadItem.location
     ) {
-      setTorrentFolderPath(`${downloadItem.location}/${downloadItem.name}`);
+      setTorrentFolderPath(`${downloadItem.location}`);
     }
   }, [downloadItem]);
 

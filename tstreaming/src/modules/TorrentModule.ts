@@ -15,7 +15,7 @@ export interface TorrentModuleInterface {
   pause(downloadId: string): Promise<void>;
   resume(downloadId: string): Promise<void>;
   resume(downloadId: string, magnetLink: string): void;
-  remove(downloadId: string): Promise<void>;
+  remove(downloadId: string, path: string): Promise<void>;
 }
 
 export default TorrentModule as TorrentModuleInterface;

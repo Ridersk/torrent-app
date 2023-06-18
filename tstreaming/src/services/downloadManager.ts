@@ -2,7 +2,7 @@ import {DeviceEventEmitter} from "react-native";
 import {RealmDatabase} from "../database/realm";
 import {DownloadObject} from "../database/realm/objects/download";
 import TorrentModule, {TorrentModuleInterface} from "../modules/TorrentModule";
-import { DownloadModel } from "../models/download";
+import {DownloadModel} from "../models/download";
 
 export default class DownloadManager {
   private static instance: DownloadManager;
@@ -109,7 +109,19 @@ export default class DownloadManager {
 
   public async remove(downloadId: string) {
     try {
-      await this.torrentService.remove(downloadId);
+      const download = await this.downloadDb.get(downloadId);
+
+      if (!download) {
+        console.error("Download not found");
+        return;
+      }
+
+      if (!download.location) {
+        console.error("Download location not found");
+        return;
+      }
+
+      await this.torrentService.remove(downloadId, download.location);
       this.downloadDb.delete(downloadId);
     } catch (error) {
       console.error(error);

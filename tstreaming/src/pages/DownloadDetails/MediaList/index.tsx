@@ -4,19 +4,15 @@ import {Text, TouchableOpacity, View} from "react-native";
 import {
   getExtensionFromFilename,
   getFilesByExtensionTypes,
+  getFilesByExtensionTypesRecursive,
 } from "../../../utils/files";
 import styles from "./styles";
 import {useNavigation} from "@react-navigation/native";
 import {NativeStackNavigationProp} from "@react-navigation/native-stack";
 import {AppRouteParams} from "../../types";
+import {Media} from "../../../models/media";
 
 const ALLOWED_EXTENSIONS = ["mp4"];
-
-type Media = {
-  name: string;
-  path: string;
-  type: string;
-};
 
 type Props = {
   folderPath: string;
@@ -29,25 +25,27 @@ export default (props: Props) => {
 
   useEffect(() => {
     if (folderPath) {
-      getFilesByExtensionTypes(folderPath, ALLOWED_EXTENSIONS).then(files => {
-        if (files.length > 0) {
-          setMediasFound(
-            files.map(file => ({
-              name: file.name,
-              path: `${folderPath}/${file.name}`,
-              type: getExtensionFromFilename(file.name),
-            })),
-          );
-          console.log("Files:", files);
-        }
-      });
+      getFilesByExtensionTypesRecursive(folderPath, ALLOWED_EXTENSIONS).then(
+        files => {
+          if (files.length > 0) {
+            setMediasFound(
+              files.map(file => ({
+                name: file.name,
+                path: `${folderPath}/${file.name}`,
+                type: getExtensionFromFilename(file.name),
+              })),
+            );
+            console.log("Files:", files);
+          }
+        },
+      );
     }
   }, [folderPath]);
 
   function handleOpenMediaRunner(media: Media): void {
     console.log("Open MediaRunner for:", media);
     if (media.type === "mp4") {
-      navigation.navigate("VideoPlayer", {source: media.path});
+      navigation.navigate("VideoPlayer", {media: media});
     }
   }
 
