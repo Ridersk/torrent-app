@@ -7,11 +7,11 @@ import {DownloadModel} from "../models/download";
 export default class DownloadManager {
   private static instance: DownloadManager;
 
-  private downloadDb: RealmDatabase;
+  private downloadDb: RealmDatabase<DownloadModel>;
   private torrentService: TorrentModuleInterface;
 
   private constructor() {
-    this.downloadDb = new RealmDatabase(DownloadObject);
+    this.downloadDb = new RealmDatabase(DownloadObject, DownloadModel);
     this.torrentService = TorrentModule;
   }
 
@@ -23,19 +23,15 @@ export default class DownloadManager {
     return DownloadManager.instance;
   }
 
-  public getDownloadsListener(callback: (data: any) => void) {
-    this.downloadDb.addObjectsListener((data: any) => {
-      callback(data);
-    });
+  public getDownloadsListener(callback: (data: DownloadModel[]) => void) {
+    this.downloadDb.addObjectsListener(callback);
   }
 
   public getDownloadListener(
     downloadId: string,
     callback: (data: DownloadModel) => void,
   ) {
-    this.downloadDb.addObjectListener(downloadId, (data: any) => {
-      callback(DownloadModel.from(data));
-    });
+    this.downloadDb.addObjectListener(downloadId, callback);
   }
 
   public async add(magnetLink: string) {
@@ -50,7 +46,6 @@ export default class DownloadManager {
       status: "DOWNLOADING",
       totalSize: 0,
     });
-    console.log("Starting Torrent...");
     this.torrentService.add(download._id, magnetLink);
     return download;
   }
@@ -116,12 +111,10 @@ export default class DownloadManager {
         return;
       }
 
-      if (!download.location) {
-        console.error("Download location not found");
-        return;
+      if (download.location) {
+        await this.torrentService.remove(downloadId, download.location);
       }
 
-      await this.torrentService.remove(downloadId, download.location);
       this.downloadDb.delete(downloadId);
     } catch (error) {
       console.error(error);

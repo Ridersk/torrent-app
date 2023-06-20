@@ -20,17 +20,17 @@ export default (props: Props) => {
 
   return (
     <SafeAreaView style={styles.container}>
-        <TextInput
-          style={styles.input}
-          value={text}
-          placeholder="Add a magnet link"
-          keyboardType="default"
-          onChangeText={setText}
-          onSubmitEditing={handleSubmit}
-        />
-        <View style={styles.btnContainer}>
-          <Button title="Add" onPress={handleSubmit} />
-        </View>
+      <TextInput
+        style={styles.input}
+        value={text}
+        placeholder="Add a magnet link"
+        keyboardType="default"
+        onChangeText={setText}
+        onSubmitEditing={handleSubmit}
+      />
+      <View style={styles.btnContainer}>
+        <Button title="Add" onPress={handleSubmit} />
+      </View>
     </SafeAreaView>
   );
 };

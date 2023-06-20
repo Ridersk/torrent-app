@@ -31,7 +31,10 @@ export function getFilesByExtensionTypesRecursive(
   });
 }
 
-export function getFilesByPattern(folderPath: string, pattern: RegExp): Promise<RNFS.ReadDirItem[]> {
+export function getFilesByPattern(
+  folderPath: string,
+  pattern: RegExp,
+): Promise<RNFS.ReadDirItem[]> {
   return RNFS.readDir(folderPath).then(files => {
     return files.filter(file => {
       return pattern.test(file.name);

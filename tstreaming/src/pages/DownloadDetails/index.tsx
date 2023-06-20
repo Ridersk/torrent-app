@@ -21,7 +21,7 @@ import {
 import Medias from "./MediaList";
 
 export default () => {
-  const route = useRoute<RouteProp<AppRouteParams>>();
+  const route = useRoute<RouteProp<AppRouteParams, "DownloadDetails">>();
   const downloadId = route.params?.id;
   const downloadManager = DownloadManager.getInstance();
   const [downloadItem, setDownloadItem] = useState<DownloadModel>();

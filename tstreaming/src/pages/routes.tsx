@@ -8,14 +8,17 @@ import VideoPlayer from "./VideoPlayer";
 
 const AppStack = createNativeStackNavigator();
 
-
 const Routes = () => {
   return (
     <NavigationContainer>
       <AppStack.Navigator>
         <AppStack.Screen name="Downloads" component={Downloads} />
         <AppStack.Screen name="DownloadDetails" component={DownloadDetails} />
-        <AppStack.Screen name="VideoPlayer" component={VideoPlayer} options={{ headerShown: false }} />
+        <AppStack.Screen
+          name="VideoPlayer"
+          component={VideoPlayer}
+          options={{headerShown: false}}
+        />
       </AppStack.Navigator>
     </NavigationContainer>
   );

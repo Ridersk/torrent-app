@@ -7,7 +7,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import styles from "./styles";
 import {RouteProp, useNavigation, useRoute} from "@react-navigation/native";
 import {AppRouteParams} from "../types";
-import {Media} from "../../models/media";
+import {Media} from "../../types/media";
 import {
   getFilenameWithoutExtension,
   getFilesByPattern,
@@ -17,7 +17,7 @@ import {NativeStackNavigationProp} from "@react-navigation/native-stack";
 import CaptionsModal, {SelectedCaption, VideoCaption} from "./CaptionsModal";
 
 export default () => {
-  const route = useRoute<RouteProp<AppRouteParams>>();
+  const route = useRoute<RouteProp<AppRouteParams, "VideoPlayer">>();
   const navigation = useNavigation<NativeStackNavigationProp<AppRouteParams>>();
   const media: Media = route.params?.media;
   const [videoCaptions, setVideoCaptions] = useState<Array<VideoCaption>>();

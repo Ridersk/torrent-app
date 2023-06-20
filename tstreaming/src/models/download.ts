@@ -1,6 +1,8 @@
+import {BaseModel} from "./@base";
+
 type DownloadStatus = "DOWNLOADING" | "PAUSED" | "COMPLETED" | "ERROR";
 
-export class DownloadModel {
+export class DownloadModel extends BaseModel {
   _id: string;
   downloadedSize: number;
   downloadRate: number;
@@ -26,6 +28,7 @@ export class DownloadModel {
     status: DownloadStatus,
     totalSize: number,
   ) {
+    super(_id);
     this._id = _id;
     this.downloadedSize = downloadedSize;
     this.downloadRate = downloadRate;
@@ -39,19 +42,19 @@ export class DownloadModel {
     this.totalSize = totalSize;
   }
 
-  static from(realmObject: any) {
+  static from(data: any) {
     return new DownloadModel(
-      realmObject._id,
-      realmObject.downloadedSize,
-      realmObject.downloadRate,
-      realmObject.location,
-      realmObject.name,
-      realmObject.peers,
-      realmObject.progress,
-      realmObject.seeders,
-      realmObject.source,
-      realmObject.status,
-      realmObject.totalSize,
+      data._id,
+      data.downloadedSize,
+      data.downloadRate,
+      data.location,
+      data.name,
+      data.peers,
+      data.progress,
+      data.seeders,
+      data.source,
+      data.status,
+      data.totalSize,
     );
   }
 }

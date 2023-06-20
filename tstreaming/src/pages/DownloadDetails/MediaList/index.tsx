@@ -3,14 +3,13 @@ import {Text, TouchableOpacity, View} from "react-native";
 
 import {
   getExtensionFromFilename,
-  getFilesByExtensionTypes,
   getFilesByExtensionTypesRecursive,
 } from "../../../utils/files";
 import styles from "./styles";
 import {useNavigation} from "@react-navigation/native";
 import {NativeStackNavigationProp} from "@react-navigation/native-stack";
 import {AppRouteParams} from "../../types";
-import {Media} from "../../../models/media";
+import {Media} from "../../../types/media";
 
 const ALLOWED_EXTENSIONS = ["mp4"];
 
