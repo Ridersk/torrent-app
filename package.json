@@ -3,10 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
-    "lint": "prettier --write . && eslint .",
     "start": "react-native start",
+    "android-run-debug": "react-native run-android",
+    "android-run": "react-native run-android --variant=release",
+    "android-build": "cd android && ./gradlew app:assembleRelease",
+    "lint": "prettier --write . && eslint .",
     "test": "jest",
     "postinstall": "patch-package"
   },
