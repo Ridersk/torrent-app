@@ -1,23 +1,24 @@
 import {DeviceEventEmitter} from "react-native";
-import {RealmDatabase} from "../database/realm";
-import {DownloadObject} from "../database/realm/objects/download";
 import TorrentModule, {TorrentModuleInterface} from "../modules/TorrentModule";
 import {DownloadModel} from "../models/download";
+import {IDatabase} from "../database";
 
 export default class DownloadManager {
   private static instance: DownloadManager;
 
-  private downloadDb: RealmDatabase<DownloadModel>;
+  private downloadDb: IDatabase<DownloadModel>;
   private torrentService: TorrentModuleInterface;
 
-  private constructor() {
-    this.downloadDb = new RealmDatabase(DownloadObject, DownloadModel);
+  private constructor(database: IDatabase<DownloadModel>) {
+    this.downloadDb = database;
     this.torrentService = TorrentModule;
   }
 
-  public static getInstance(): DownloadManager {
+  public static getInstance(
+    database: IDatabase<DownloadModel>,
+  ): DownloadManager {
     if (!DownloadManager.instance) {
-      DownloadManager.instance = new DownloadManager();
+      DownloadManager.instance = new DownloadManager(database);
       DownloadManager.instance.addTorrentListeners();
     }
     return DownloadManager.instance;

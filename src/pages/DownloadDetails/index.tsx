@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -12,18 +12,18 @@ import {ProgressBar} from "@react-native-community/progress-bar-android";
 import styles from "./styles";
 import {DownloadModel} from "../../models/download";
 import {RouteProp, useRoute} from "@react-navigation/native";
-import DownloadManager from "../../services/downloadManager";
 import {AppRouteParams} from "../types";
 import {
   convertBytesComparisonToHumanReadable,
   convertBytesToHumanReadablePerSecond,
 } from "../../utils/units_conversor";
+import {DownloadManagerProvider} from "../../services";
 import Medias from "./MediaList";
 
 export default () => {
+  const downloadManager = useContext(DownloadManagerProvider);
   const route = useRoute<RouteProp<AppRouteParams, "DownloadDetails">>();
   const downloadId = route.params?.id;
-  const downloadManager = DownloadManager.getInstance();
   const [downloadItem, setDownloadItem] = useState<DownloadModel>();
   const [torrentFolderPath, setTorrentFolderPath] = useState<string>();
 

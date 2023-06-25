@@ -1,8 +1,8 @@
-import React, {useEffect, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import {View} from "react-native";
 
 import styles from "./styles";
-import DownloadManager from "../../services/downloadManager";
+import {DownloadManagerProvider} from "../../services";
 import {DownloadModel} from "../../models/download";
 import Search from "../../components/Search";
 import DownloadList, {ActionType} from "./List";
@@ -11,8 +11,8 @@ import {NativeStackNavigationProp} from "@react-navigation/native-stack";
 import {AppRouteParams} from "../types";
 
 export default () => {
+  const downloadManager = useContext(DownloadManagerProvider);
   const navigation = useNavigation<NativeStackNavigationProp<AppRouteParams>>();
-  const downloadManager = DownloadManager.getInstance();
   const [downloads, setDownloads] = useState<DownloadModel[]>([]);
   const [, updateState] = React.useState<object>();
   const forceUpdate = React.useCallback(() => updateState({}), []);
